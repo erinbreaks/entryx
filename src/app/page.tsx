@@ -21,12 +21,6 @@ export default async function HomePage() {
       {/* Hero Section */}
       <section className="relative pt-6 pb-12 md:py-16 text-center max-w-4xl mx-auto space-y-8">
         
-        {/* Subtle Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-surface-elevated/80 border border-brand-gold/30 text-brand-gold text-xs font-semibold tracking-wide backdrop-blur-md shadow-sm">
-          <Zap className="w-3.5 h-3.5 fill-brand-gold" />
-          <span>Real-Time Event Operations</span>
-        </div>
-
         {/* Main Headline with React Bits WarpText */}
         <div className="space-y-2 flex flex-col items-center">
           <div className="w-full max-w-lg h-28 sm:h-36 relative flex items-center justify-center">
@@ -53,7 +47,7 @@ export default async function HomePage() {
 
         {/* Description */}
         <p className="text-base sm:text-lg text-cream-muted max-w-2xl mx-auto leading-relaxed">
-          A real-time event registration and QR-based entry verification platform designed for seamless gate check-ins and cryptographic ticket authenticity.
+          Discover exciting events, Register, Get your ticket, and Scan your way in.
         </p>
 
         {/* Primary Action Buttons */}
@@ -105,7 +99,7 @@ export default async function HomePage() {
         <div className="flex items-center justify-between">
           <h2 className="text-xl md:text-2xl font-bold text-cream-100 flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-brand-gold animate-pulse" />
-            Featured Visuals
+            Upcoming Events
           </h2>
           <Link
             href="/events"
@@ -198,50 +192,6 @@ export default async function HomePage() {
             ))}
           </div>
         )}
-      </section>
-
-      {/* How EntryX Works Section */}
-      <section className="py-12 border-t border-surface-border space-y-10">
-        <div className="text-center max-w-2xl mx-auto space-y-2">
-          <h2 className="text-2xl md:text-3xl font-extrabold text-cream-50 font-display">
-            How EntryX Works
-          </h2>
-          <p className="text-sm text-cream-muted">
-            Engineered for high-volume entry speed, security, and verification integrity.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-surface/80 rounded-2xl border border-surface-border p-6 space-y-3">
-            <div className="w-12 h-12 rounded-xl bg-brand-gold-muted border border-brand-gold/30 flex items-center justify-center text-brand-gold">
-              <Ticket className="w-6 h-6" />
-            </div>
-            <h3 className="text-lg font-bold text-cream-50">1. Real-Time Registration</h3>
-            <p className="text-xs text-cream-muted leading-relaxed">
-              Attendees register directly with atomic seat reservation that immediately prevents overcapacity.
-            </p>
-          </div>
-
-          <div className="bg-surface/80 rounded-2xl border border-surface-border p-6 space-y-3">
-            <div className="w-12 h-12 rounded-xl bg-brand-gold-muted border border-brand-gold/30 flex items-center justify-center text-brand-gold">
-              <ShieldCheck className="w-6 h-6" />
-            </div>
-            <h3 className="text-lg font-bold text-cream-50">2. Cryptographic Pass</h3>
-            <p className="text-xs text-cream-muted leading-relaxed">
-              Each ticket receives a unique HMAC-SHA256 signature and high-res QR code sent via transactional email.
-            </p>
-          </div>
-
-          <div className="bg-surface/80 rounded-2xl border border-surface-border p-6 space-y-3">
-            <div className="w-12 h-12 rounded-xl bg-brand-gold-muted border border-brand-gold/30 flex items-center justify-center text-brand-gold">
-              <QrCode className="w-6 h-6" />
-            </div>
-            <h3 className="text-lg font-bold text-cream-50">3. Gate QR Verification</h3>
-            <p className="text-xs text-cream-muted leading-relaxed">
-              Organizers verify QR codes in real-time via webcam scanner with instant duplicate prevention.
-            </p>
-          </div>
-        </div>
       </section>
     </div>
   );

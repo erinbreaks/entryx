@@ -13,7 +13,7 @@ export default async function EventsPage() {
       {/* Header */}
       <div className="space-y-2">
         <h1 className="text-3xl md:text-4xl font-extrabold text-cream-50 font-display">
-          Available Events
+          Discover
         </h1>
         <p className="text-sm text-cream-muted">
           Browse real events and register for digital QR access passes.

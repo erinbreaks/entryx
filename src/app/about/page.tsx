@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { Ticket, ShieldCheck, QrCode, Mail, Phone, Calendar, ArrowRight } from 'lucide-react';
+import { Ticket, QrCode, Mail, Phone, Calendar, ArrowRight } from 'lucide-react';
 import Logo from '@/components/Logo';
 
 export default function AboutPage() {
@@ -66,27 +66,6 @@ export default function AboutPage() {
 
       </div>
 
-      {/* Security Architecture */}
-      <div className="bg-surface rounded-3xl border border-surface-border p-8 md:p-10 space-y-6 shadow-xl">
-        <div className="flex items-center gap-3">
-          <ShieldCheck className="w-7 h-7 text-brand-gold" />
-          <h3 className="text-xl font-bold text-cream-50">Cryptographic Ticket Security</h3>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-xs text-cream-muted">
-          <div className="space-y-1.5 p-4 rounded-xl bg-surface-elevated border border-surface-border">
-            <strong className="text-cream-100 block font-semibold">HMAC-SHA256 Signing</strong>
-            <p>Every ticket token is signed server-side using an environment secret key to prevent forgery.</p>
-          </div>
-          <div className="space-y-1.5 p-4 rounded-xl bg-surface-elevated border border-surface-border">
-            <strong className="text-cream-100 block font-semibold">Atomic Capacity Control</strong>
-            <p>Registrations strictly enforce maximum capacity at the database level to prevent race conditions.</p>
-          </div>
-          <div className="space-y-1.5 p-4 rounded-xl bg-surface-elevated border border-surface-border">
-            <strong className="text-cream-100 block font-semibold">Single-Use QR Validation</strong>
-            <p>Scanners instantly flag duplicate entries with exact historical timestamps and prevent unauthorized re-use.</p>
-          </div>
-        </div>
-      </div>
 
       {/* Direct Contact Card */}
       <div className="bg-surface-elevated rounded-2xl border border-brand-gold/30 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
