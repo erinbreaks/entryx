@@ -100,8 +100,4 @@ Full PostgreSQL DDL script located at [`supabase/schema.sql`](supabase/schema.sq
 
 ---
 
-## 📬 Contact & Support
 
-Created & maintained by **Erin Bobin**  
-- **Email**: [erinbobin@gmail.com](mailto:erinbobin@gmail.com)  
-- **Phone**: `9446611885`
