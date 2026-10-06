@@ -20,8 +20,20 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className="bg-background text-cream-50 min-h-screen flex flex-col relative selection:bg-brand-gold selection:text-background">
-        {/* Animated Ticket-themed WebGL Background */}
-        <PatternWaves speed={0.35} waveFrequency={2.2} waveAmplitude={0.12} />
+        {/* Animated Ticket-themed WebGL Background (React Bits PatternWaves) */}
+        <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
+          <PatternWaves
+            preset="silk"
+            color="#E5A93C"
+            backgroundColor="#0B0D13"
+            fade="edges"
+            interactive={true}
+            cursorSize={50}
+            cursorStrength={0.6}
+            opacity={0.8}
+            speed={0.35}
+          />
+        </div>
 
         {/* Global Navigation */}
         <Navbar />
