@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { supabaseAdmin, isSupabaseConfigured } from './supabase';
 import crypto from 'crypto';
 
@@ -97,51 +98,54 @@ interface LocalDB {
   check_ins: CheckIn[];
 }
 
-const DB_FILE = path.join(process.cwd(), 'data', 'entryx_db.json');
+// In-memory memory store to prevent serverless file-lock issues
+let memoryDB: LocalDB = {
+  profiles: [],
+  event_creation_requests: [],
+  events: [],
+  event_organizers: [],
+  registrations: [],
+  tickets: [],
+  check_ins: [],
+};
 
-// Ensure local storage directory exists
+// Choose appropriate writable location for serverless vs local dev
+const DB_FILE = process.env.VERCEL
+  ? path.join(os.tmpdir(), 'entryx_db.json')
+  : path.join(process.cwd(), 'data', 'entryx_db.json');
+
 function getLocalDB(): LocalDB {
   try {
-    if (!fs.existsSync(path.dirname(DB_FILE))) {
-      fs.mkdirSync(path.dirname(DB_FILE), { recursive: true });
-    }
-    if (!fs.existsSync(DB_FILE)) {
-      const initial: LocalDB = {
-        profiles: [],
-        event_creation_requests: [],
-        events: [],
-        event_organizers: [],
-        registrations: [],
-        tickets: [],
-        check_ins: [],
+    if (fs.existsSync(DB_FILE)) {
+      const content = fs.readFileSync(DB_FILE, 'utf8');
+      const parsed = JSON.parse(content);
+      memoryDB = {
+        profiles: parsed.profiles || [],
+        event_creation_requests: parsed.event_creation_requests || [],
+        events: parsed.events || [],
+        event_organizers: parsed.event_organizers || [],
+        registrations: parsed.registrations || [],
+        tickets: parsed.tickets || [],
+        check_ins: parsed.check_ins || [],
       };
-      fs.writeFileSync(DB_FILE, JSON.stringify(initial, null, 2), 'utf8');
-      return initial;
+      return memoryDB;
     }
-    const content = fs.readFileSync(DB_FILE, 'utf8');
-    return JSON.parse(content);
   } catch (err) {
-    console.error('Error reading local DB:', err);
-    return {
-      profiles: [],
-      event_creation_requests: [],
-      events: [],
-      event_organizers: [],
-      registrations: [],
-      tickets: [],
-      check_ins: [],
-    };
+    // Return in-memory fallback
   }
+  return memoryDB;
 }
 
 function saveLocalDB(data: LocalDB): void {
+  memoryDB = data;
   try {
-    if (!fs.existsSync(path.dirname(DB_FILE))) {
-      fs.mkdirSync(path.dirname(DB_FILE), { recursive: true });
+    const dir = path.dirname(DB_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
     }
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf8');
   } catch (err) {
-    console.error('Error saving local DB:', err);
+    // If filesystem write fails on serverless, in-memory state is preserved
   }
 }
 
@@ -152,13 +156,16 @@ export const db = {
   async getProfileByEmail(email: string): Promise<Profile | null> {
     const normalizedEmail = email.trim().toLowerCase();
     if (isSupabaseConfigured && supabaseAdmin) {
-      const { data, error } = await supabaseAdmin
-        .from('profiles')
-        .select('*')
-        .ilike('email', normalizedEmail)
-        .single();
-      if (error || !data) return null;
-      return data as Profile;
+      try {
+        const { data, error } = await supabaseAdmin
+          .from('profiles')
+          .select('*')
+          .ilike('email', normalizedEmail)
+          .single();
+        if (!error && data) return data as Profile;
+      } catch (e) {
+        console.warn('Supabase query failed, using fallback:', e);
+      }
     }
     const local = getLocalDB();
     return local.profiles.find((p) => p.email.toLowerCase() === normalizedEmail) || null;
@@ -166,9 +173,12 @@ export const db = {
 
   async getProfileById(id: string): Promise<Profile | null> {
     if (isSupabaseConfigured && supabaseAdmin) {
-      const { data, error } = await supabaseAdmin.from('profiles').select('*').eq('id', id).single();
-      if (error || !data) return null;
-      return data as Profile;
+      try {
+        const { data, error } = await supabaseAdmin.from('profiles').select('*').eq('id', id).single();
+        if (!error && data) return data as Profile;
+      } catch (e) {
+        console.warn('Supabase query failed, using fallback:', e);
+      }
     }
     const local = getLocalDB();
     return local.profiles.find((p) => p.id === id) || null;
@@ -185,9 +195,12 @@ export const db = {
     };
 
     if (isSupabaseConfigured && supabaseAdmin) {
-      const { data, error } = await supabaseAdmin.from('profiles').insert(newProfile).select().single();
-      if (error) throw error;
-      return data as Profile;
+      try {
+        const { data, error } = await supabaseAdmin.from('profiles').insert(newProfile).select().single();
+        if (!error && data) return data as Profile;
+      } catch (e) {
+        console.warn('Supabase insert failed, using fallback:', e);
+      }
     }
 
     const local = getLocalDB();
@@ -198,13 +211,16 @@ export const db = {
 
   async listOrganizers(): Promise<Profile[]> {
     if (isSupabaseConfigured && supabaseAdmin) {
-      const { data, error } = await supabaseAdmin
-        .from('profiles')
-        .select('*')
-        .eq('role', 'organizer')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return (data || []) as Profile[];
+      try {
+        const { data, error } = await supabaseAdmin
+          .from('profiles')
+          .select('*')
+          .eq('role', 'organizer')
+          .order('created_at', { ascending: false });
+        if (!error && data) return data as Profile[];
+      } catch (e) {
+        console.warn('Supabase list failed, using fallback:', e);
+      }
     }
     const local = getLocalDB();
     return local.profiles.filter((p) => p.role === 'organizer');
@@ -222,9 +238,12 @@ export const db = {
     };
 
     if (isSupabaseConfigured && supabaseAdmin) {
-      const { data, error } = await supabaseAdmin.from('event_creation_requests').insert(newReq).select().single();
-      if (error) throw error;
-      return data as EventCreationRequest;
+      try {
+        const { data, error } = await supabaseAdmin.from('event_creation_requests').insert(newReq).select().single();
+        if (!error && data) return data as EventCreationRequest;
+      } catch (e) {
+        console.warn('Supabase insert failed, using fallback:', e);
+      }
     }
 
     const local = getLocalDB();
@@ -235,12 +254,15 @@ export const db = {
 
   async listEventRequests(): Promise<EventCreationRequest[]> {
     if (isSupabaseConfigured && supabaseAdmin) {
-      const { data, error } = await supabaseAdmin
-        .from('event_creation_requests')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return (data || []) as EventCreationRequest[];
+      try {
+        const { data, error } = await supabaseAdmin
+          .from('event_creation_requests')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (!error && data) return data as EventCreationRequest[];
+      } catch (e) {
+        console.warn('Supabase list failed, using fallback:', e);
+      }
     }
     const local = getLocalDB();
     return [...local.event_creation_requests].sort(
@@ -255,14 +277,17 @@ export const db = {
   ): Promise<EventCreationRequest | null> {
     const reviewedAt = new Date().toISOString();
     if (isSupabaseConfigured && supabaseAdmin) {
-      const { data, error } = await supabaseAdmin
-        .from('event_creation_requests')
-        .update({ status, reviewed_at: reviewedAt, reviewed_by: reviewedBy })
-        .eq('id', id)
-        .select()
-        .single();
-      if (error) throw error;
-      return data as EventCreationRequest;
+      try {
+        const { data, error } = await supabaseAdmin
+          .from('event_creation_requests')
+          .update({ status, reviewed_at: reviewedAt, reviewed_by: reviewedBy })
+          .eq('id', id)
+          .select()
+          .single();
+        if (!error && data) return data as EventCreationRequest;
+      } catch (e) {
+        console.warn('Supabase update failed, using fallback:', e);
+      }
     }
 
     const local = getLocalDB();
@@ -290,9 +315,12 @@ export const db = {
     };
 
     if (isSupabaseConfigured && supabaseAdmin) {
-      const { data, error } = await supabaseAdmin.from('events').insert(newEvent).select().single();
-      if (error) throw error;
-      return data as Event;
+      try {
+        const { data, error } = await supabaseAdmin.from('events').insert(newEvent).select().single();
+        if (!error && data) return data as Event;
+      } catch (e) {
+        console.warn('Supabase insert failed, using fallback:', e);
+      }
     }
 
     const local = getLocalDB();
@@ -304,17 +332,21 @@ export const db = {
   async getEventById(id: string): Promise<Event | null> {
     let event: Event | null = null;
     if (isSupabaseConfigured && supabaseAdmin) {
-      const { data, error } = await supabaseAdmin.from('events').select('*').eq('id', id).single();
-      if (error || !data) return null;
-      event = data as Event;
-    } else {
+      try {
+        const { data, error } = await supabaseAdmin.from('events').select('*').eq('id', id).single();
+        if (!error && data) event = data as Event;
+      } catch (e) {
+        console.warn('Supabase query failed, using fallback:', e);
+      }
+    }
+
+    if (!event) {
       const local = getLocalDB();
       event = local.events.find((e) => e.id === id) || null;
     }
 
     if (!event) return null;
 
-    // Calculate real dynamic stats
     const stats = await this.getEventStats(id);
     return {
       ...event,
@@ -328,17 +360,24 @@ export const db = {
     let events: Event[] = [];
 
     if (isSupabaseConfigured && supabaseAdmin) {
-      let query = supabaseAdmin.from('events').select('*').order('event_date', { ascending: true });
-      if (options?.status) {
-        query = query.eq('status', options.status);
+      try {
+        let query = supabaseAdmin.from('events').select('*').order('event_date', { ascending: true });
+        if (options?.status) {
+          query = query.eq('status', options.status);
+        }
+        if (options?.onlyWithImages) {
+          query = query.not('image_url', 'is', null).neq('image_url', '');
+        }
+        const { data, error } = await query;
+        if (!error && data) {
+          events = data as Event[];
+        }
+      } catch (e) {
+        console.warn('Supabase query failed, using fallback:', e);
       }
-      if (options?.onlyWithImages) {
-        query = query.not('image_url', 'is', null).neq('image_url', '');
-      }
-      const { data, error } = await query;
-      if (error) throw error;
-      events = (data || []) as Event[];
-    } else {
+    }
+
+    if (events.length === 0) {
       const local = getLocalDB();
       events = [...local.events];
       if (options?.status) {
@@ -356,7 +395,7 @@ export const db = {
       events = events.filter((e) => authorizedEventIds.includes(e.id) || e.created_by === options.organizerId);
     }
 
-    // Calculate live counts for each event
+    // Compute live stats for each event
     const enrichedEvents = await Promise.all(
       events.map(async (e) => {
         const stats = await this.getEventStats(e.id);
@@ -375,14 +414,17 @@ export const db = {
   async updateEvent(id: string, updates: Partial<Event>): Promise<Event | null> {
     const updated_at = new Date().toISOString();
     if (isSupabaseConfigured && supabaseAdmin) {
-      const { data, error } = await supabaseAdmin
-        .from('events')
-        .update({ ...updates, updated_at })
-        .eq('id', id)
-        .select()
-        .single();
-      if (error) throw error;
-      return data as Event;
+      try {
+        const { data, error } = await supabaseAdmin
+          .from('events')
+          .update({ ...updates, updated_at })
+          .eq('id', id)
+          .select()
+          .single();
+        if (!error && data) return data as Event;
+      } catch (e) {
+        console.warn('Supabase update failed, using fallback:', e);
+      }
     }
 
     const local = getLocalDB();
@@ -409,9 +451,12 @@ export const db = {
     };
 
     if (isSupabaseConfigured && supabaseAdmin) {
-      const { data, error } = await supabaseAdmin.from('event_organizers').insert(newAssignment).select().single();
-      if (error) throw error;
-      return data as EventOrganizer;
+      try {
+        const { data, error } = await supabaseAdmin.from('event_organizers').insert(newAssignment).select().single();
+        if (!error && data) return data as EventOrganizer;
+      } catch (e) {
+        console.warn('Supabase assign failed, using fallback:', e);
+      }
     }
 
     const local = getLocalDB();
@@ -425,12 +470,15 @@ export const db = {
 
   async getOrganizerEventIds(organizerId: string): Promise<string[]> {
     if (isSupabaseConfigured && supabaseAdmin) {
-      const { data, error } = await supabaseAdmin
-        .from('event_organizers')
-        .select('event_id')
-        .eq('organizer_id', organizerId);
-      if (error) throw error;
-      return (data || []).map((row: any) => row.event_id);
+      try {
+        const { data, error } = await supabaseAdmin
+          .from('event_organizers')
+          .select('event_id')
+          .eq('organizer_id', organizerId);
+        if (!error && data) return (data || []).map((row: any) => row.event_id);
+      } catch (e) {
+        console.warn('Supabase query failed, using fallback:', e);
+      }
     }
     const local = getLocalDB();
     return local.event_organizers
@@ -447,13 +495,17 @@ export const db = {
     if (event && event.created_by === organizerId) return true;
 
     if (isSupabaseConfigured && supabaseAdmin) {
-      const { data, error } = await supabaseAdmin
-        .from('event_organizers')
-        .select('id')
-        .eq('organizer_id', organizerId)
-        .eq('event_id', eventId)
-        .single();
-      return Boolean(data && !error);
+      try {
+        const { data, error } = await supabaseAdmin
+          .from('event_organizers')
+          .select('id')
+          .eq('organizer_id', organizerId)
+          .eq('event_id', eventId)
+          .single();
+        return Boolean(data && !error);
+      } catch (e) {
+        // Fallback to local
+      }
     }
 
     const local = getLocalDB();
@@ -467,21 +519,25 @@ export const db = {
   // ==========================================
   async getEventStats(eventId: string): Promise<{ registeredCount: number; checkedInCount: number }> {
     if (isSupabaseConfigured && supabaseAdmin) {
-      const { count: regCount } = await supabaseAdmin
-        .from('registrations')
-        .select('*', { count: 'exact', head: true })
-        .eq('event_id', eventId)
-        .eq('status', 'confirmed');
+      try {
+        const { count: regCount } = await supabaseAdmin
+          .from('registrations')
+          .select('*', { count: 'exact', head: true })
+          .eq('event_id', eventId)
+          .eq('status', 'confirmed');
 
-      const { count: checkinCount } = await supabaseAdmin
-        .from('check_ins')
-        .select('*', { count: 'exact', head: true })
-        .eq('event_id', eventId);
+        const { count: checkinCount } = await supabaseAdmin
+          .from('check_ins')
+          .select('*', { count: 'exact', head: true })
+          .eq('event_id', eventId);
 
-      return {
-        registeredCount: regCount || 0,
-        checkedInCount: checkinCount || 0,
-      };
+        return {
+          registeredCount: regCount || 0,
+          checkedInCount: checkinCount || 0,
+        };
+      } catch (e) {
+        console.warn('Supabase getEventStats failed, using fallback:', e);
+      }
     }
 
     const local = getLocalDB();
@@ -493,9 +549,6 @@ export const db = {
     return { registeredCount, checkedInCount };
   },
 
-  /**
-   * Performs an atomic registration checking capacity safely
-   */
   async registerStudent(params: {
     eventId: string;
     fullName: string;
@@ -518,13 +571,11 @@ export const db = {
       throw new Error('Registration deadline for this event has passed');
     }
 
-    // Check existing registration
     const existing = await this.getRegistrationByEventAndEmail(eventId, normalizedEmail);
     if (existing) {
       throw new Error('You have already registered for this event with this email address');
     }
 
-    // Check capacity atomically
     const stats = await this.getEventStats(eventId);
     if (stats.registeredCount >= event.max_capacity) {
       throw new Error('Registration Closed — Capacity Reached');
@@ -541,18 +592,22 @@ export const db = {
     };
 
     if (isSupabaseConfigured && supabaseAdmin) {
-      const { data, error } = await supabaseAdmin.from('registrations').insert(newRegistration).select().single();
-      if (error) {
-        if (error.code === '23505') {
-          throw new Error('You have already registered for this event with this email address');
+      try {
+        const { data, error } = await supabaseAdmin.from('registrations').insert(newRegistration).select().single();
+        if (error) {
+          if (error.code === '23505') {
+            throw new Error('You have already registered for this event with this email address');
+          }
+          throw error;
         }
-        throw error;
+        return { registration: data as Registration, event };
+      } catch (e: any) {
+        if (e.message.includes('already registered')) throw e;
+        console.warn('Supabase registration failed, using fallback:', e);
       }
-      return { registration: data as Registration, event };
     }
 
     const local = getLocalDB();
-    // Double check race condition in local state
     const doubleCheckCount = local.registrations.filter(
       (r) => r.event_id === eventId && r.status === 'confirmed'
     ).length;
@@ -568,14 +623,17 @@ export const db = {
   async getRegistrationByEventAndEmail(eventId: string, email: string): Promise<Registration | null> {
     const normalizedEmail = email.trim().toLowerCase();
     if (isSupabaseConfigured && supabaseAdmin) {
-      const { data, error } = await supabaseAdmin
-        .from('registrations')
-        .select('*')
-        .eq('event_id', eventId)
-        .ilike('email', normalizedEmail)
-        .single();
-      if (error || !data) return null;
-      return data as Registration;
+      try {
+        const { data, error } = await supabaseAdmin
+          .from('registrations')
+          .select('*')
+          .eq('event_id', eventId)
+          .ilike('email', normalizedEmail)
+          .single();
+        if (!error && data) return data as Registration;
+      } catch (e) {
+        console.warn('Supabase query failed, using fallback:', e);
+      }
     }
     const local = getLocalDB();
     return (
@@ -587,13 +645,16 @@ export const db = {
 
   async listRegistrationsForEvent(eventId: string): Promise<Registration[]> {
     if (isSupabaseConfigured && supabaseAdmin) {
-      const { data, error } = await supabaseAdmin
-        .from('registrations')
-        .select('*')
-        .eq('event_id', eventId)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return (data || []) as Registration[];
+      try {
+        const { data, error } = await supabaseAdmin
+          .from('registrations')
+          .select('*')
+          .eq('event_id', eventId)
+          .order('created_at', { ascending: false });
+        if (!error && data) return data as Registration[];
+      } catch (e) {
+        console.warn('Supabase list failed, using fallback:', e);
+      }
     }
     const local = getLocalDB();
     return local.registrations.filter((r) => r.event_id === eventId);
@@ -612,9 +673,12 @@ export const db = {
     };
 
     if (isSupabaseConfigured && supabaseAdmin) {
-      const { data, error } = await supabaseAdmin.from('tickets').insert(newTicket).select().single();
-      if (error) throw error;
-      return data as Ticket;
+      try {
+        const { data, error } = await supabaseAdmin.from('tickets').insert(newTicket).select().single();
+        if (!error && data) return data as Ticket;
+      } catch (e) {
+        console.warn('Supabase insert ticket failed, using fallback:', e);
+      }
     }
 
     const local = getLocalDB();
@@ -625,13 +689,16 @@ export const db = {
 
   async getTicketByRegistrationId(registrationId: string): Promise<Ticket | null> {
     if (isSupabaseConfigured && supabaseAdmin) {
-      const { data, error } = await supabaseAdmin
-        .from('tickets')
-        .select('*')
-        .eq('registration_id', registrationId)
-        .single();
-      if (error || !data) return null;
-      return data as Ticket;
+      try {
+        const { data, error } = await supabaseAdmin
+          .from('tickets')
+          .select('*')
+          .eq('registration_id', registrationId)
+          .single();
+        if (!error && data) return data as Ticket;
+      } catch (e) {
+        console.warn('Supabase query failed, using fallback:', e);
+      }
     }
     const local = getLocalDB();
     return local.tickets.find((t) => t.registration_id === registrationId) || null;
@@ -639,9 +706,12 @@ export const db = {
 
   async getTicketById(id: string): Promise<Ticket | null> {
     if (isSupabaseConfigured && supabaseAdmin) {
-      const { data, error } = await supabaseAdmin.from('tickets').select('*').eq('id', id).single();
-      if (error || !data) return null;
-      return data as Ticket;
+      try {
+        const { data, error } = await supabaseAdmin.from('tickets').select('*').eq('id', id).single();
+        if (!error && data) return data as Ticket;
+      } catch (e) {
+        console.warn('Supabase query failed, using fallback:', e);
+      }
     }
     const local = getLocalDB();
     return local.tickets.find((t) => t.id === id) || null;
@@ -649,9 +719,12 @@ export const db = {
 
   async getTicketBySignedToken(token: string): Promise<Ticket | null> {
     if (isSupabaseConfigured && supabaseAdmin) {
-      const { data, error } = await supabaseAdmin.from('tickets').select('*').eq('signed_token', token).single();
-      if (error || !data) return null;
-      return data as Ticket;
+      try {
+        const { data, error } = await supabaseAdmin.from('tickets').select('*').eq('signed_token', token).single();
+        if (!error && data) return data as Ticket;
+      } catch (e) {
+        console.warn('Supabase query failed, using fallback:', e);
+      }
     }
     const local = getLocalDB();
     return local.tickets.find((t) => t.signed_token === token) || null;
@@ -660,14 +733,17 @@ export const db = {
   async updateTicketStatus(id: string, status: 'valid' | 'checked_in' | 'cancelled'): Promise<Ticket | null> {
     const updated_at = new Date().toISOString();
     if (isSupabaseConfigured && supabaseAdmin) {
-      const { data, error } = await supabaseAdmin
-        .from('tickets')
-        .update({ status, updated_at })
-        .eq('id', id)
-        .select()
-        .single();
-      if (error) throw error;
-      return data as Ticket;
+      try {
+        const { data, error } = await supabaseAdmin
+          .from('tickets')
+          .update({ status, updated_at })
+          .eq('id', id)
+          .select()
+          .single();
+        if (!error && data) return data as Ticket;
+      } catch (e) {
+        console.warn('Supabase update failed, using fallback:', e);
+      }
     }
     const local = getLocalDB();
     const ticket = local.tickets.find((t) => t.id === id);
@@ -683,13 +759,16 @@ export const db = {
   // ==========================================
   async getCheckInByTicketId(ticketId: string): Promise<CheckIn | null> {
     if (isSupabaseConfigured && supabaseAdmin) {
-      const { data, error } = await supabaseAdmin
-        .from('check_ins')
-        .select('*')
-        .eq('ticket_id', ticketId)
-        .single();
-      if (error || !data) return null;
-      return data as CheckIn;
+      try {
+        const { data, error } = await supabaseAdmin
+          .from('check_ins')
+          .select('*')
+          .eq('ticket_id', ticketId)
+          .single();
+        if (!error && data) return data as CheckIn;
+      } catch (e) {
+        console.warn('Supabase query failed, using fallback:', e);
+      }
     }
     const local = getLocalDB();
     return local.check_ins.find((c) => c.ticket_id === ticketId) || null;
@@ -705,9 +784,12 @@ export const db = {
     };
 
     if (isSupabaseConfigured && supabaseAdmin) {
-      const { data, error } = await supabaseAdmin.from('check_ins').insert(newCheckIn).select().single();
-      if (error) throw error;
-      return data as CheckIn;
+      try {
+        const { data, error } = await supabaseAdmin.from('check_ins').insert(newCheckIn).select().single();
+        if (!error && data) return data as CheckIn;
+      } catch (e) {
+        console.warn('Supabase recordCheckIn failed, using fallback:', e);
+      }
     }
 
     const local = getLocalDB();
@@ -718,13 +800,16 @@ export const db = {
 
   async listCheckInsForEvent(eventId: string): Promise<CheckIn[]> {
     if (isSupabaseConfigured && supabaseAdmin) {
-      const { data, error } = await supabaseAdmin
-        .from('check_ins')
-        .select('*')
-        .eq('event_id', eventId)
-        .order('checked_in_at', { ascending: false });
-      if (error) throw error;
-      return (data || []) as CheckIn[];
+      try {
+        const { data, error } = await supabaseAdmin
+          .from('check_ins')
+          .select('*')
+          .eq('event_id', eventId)
+          .order('checked_in_at', { ascending: false });
+        if (!error && data) return data as CheckIn[];
+      } catch (e) {
+        console.warn('Supabase listCheckIns failed, using fallback:', e);
+      }
     }
     const local = getLocalDB();
     return local.check_ins.filter((c) => c.event_id === eventId);
@@ -742,23 +827,27 @@ export const db = {
     totalOrganizers: number;
   }> {
     if (isSupabaseConfigured && supabaseAdmin) {
-      const [eventsRes, activeEventsRes, regRes, checkinsRes, requestsRes, orgsRes] = await Promise.all([
-        supabaseAdmin.from('events').select('*', { count: 'exact', head: true }),
-        supabaseAdmin.from('events').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-        supabaseAdmin.from('registrations').select('*', { count: 'exact', head: true }).eq('status', 'confirmed'),
-        supabaseAdmin.from('check_ins').select('*', { count: 'exact', head: true }),
-        supabaseAdmin.from('event_creation_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-        supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'organizer'),
-      ]);
+      try {
+        const [eventsRes, activeEventsRes, regRes, checkinsRes, requestsRes, orgsRes] = await Promise.all([
+          supabaseAdmin.from('events').select('*', { count: 'exact', head: true }),
+          supabaseAdmin.from('events').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+          supabaseAdmin.from('registrations').select('*', { count: 'exact', head: true }).eq('status', 'confirmed'),
+          supabaseAdmin.from('check_ins').select('*', { count: 'exact', head: true }),
+          supabaseAdmin.from('event_creation_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+          supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'organizer'),
+        ]);
 
-      return {
-        totalEvents: eventsRes.count || 0,
-        activeEvents: activeEventsRes.count || 0,
-        totalRegistrations: regRes.count || 0,
-        totalCheckIns: checkinsRes.count || 0,
-        pendingRequests: requestsRes.count || 0,
-        totalOrganizers: orgsRes.count || 0,
-      };
+        return {
+          totalEvents: eventsRes.count || 0,
+          activeEvents: activeEventsRes.count || 0,
+          totalRegistrations: regRes.count || 0,
+          totalCheckIns: checkinsRes.count || 0,
+          pendingRequests: requestsRes.count || 0,
+          totalOrganizers: orgsRes.count || 0,
+        };
+      } catch (e) {
+        console.warn('Supabase getSystemOverviewStats failed, using fallback:', e);
+      }
     }
 
     const local = getLocalDB();
