@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import EventCarousel from '@/components/EventCarousel';
+import WarpText from '@/components/WarpText';
 import { Calendar, Ticket, ShieldCheck, QrCode, ArrowRight, Zap, CheckCircle2 } from 'lucide-react';
 import { db } from '@/lib/db';
 
@@ -26,11 +27,25 @@ export default async function HomePage() {
           <span>Real-Time Event Operations</span>
         </div>
 
-        {/* Main Headline */}
-        <div className="space-y-3">
-          <h1 className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight text-cream-50 font-display">
-            Entry<span className="text-brand-gold">X</span>
-          </h1>
+        {/* Main Headline with React Bits WarpText */}
+        <div className="space-y-2 flex flex-col items-center">
+          <div className="w-full max-w-lg h-28 sm:h-36 relative flex items-center justify-center">
+            <WarpText
+              text="EntryX"
+              color="#FAF6EE"
+              warpStrength={0.08}
+              warpScale={1.7}
+              speed={0.55}
+              pointerInfluence={0.42}
+              pointerStrength={0.38}
+              refraction={0.018}
+              ripple={true}
+              fontSize="clamp(3.5rem, 9vw, 6.5rem)"
+              fontWeight={900}
+              letterSpacing="-0.04em"
+              style={{ width: '100%', height: '100%', minHeight: '100px' }}
+            />
+          </div>
           <p className="text-xl sm:text-2xl md:text-3xl font-bold text-cream-200 tracking-tight">
             Event Entry, Reimagined.
           </p>
