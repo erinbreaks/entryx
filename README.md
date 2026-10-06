@@ -11,7 +11,7 @@
 
 **Real-time event registration, tamper-proof QR passes, and live gate scanning.**
 
-[Report Bug](mailto:erinbobin@gmail.com) · [Request Event Access](mailto:erinbobin@gmail.com)
+
 
 </div>
 
@@ -19,7 +19,6 @@
 
 ## ✨ Highlights
 
-- ⚡ **Zero Fake Data** — Everything is live, database-backed, and calculated in real time.
 - 🔒 **Cryptographic QR Passes** — Server-signed with HMAC-SHA256. Zero forgery, zero ticket duplication.
 - 📷 **In-Browser Gate Scanner** — Instant webcam QR scanning with audio feedback and duplicate detection.
 - 🛡️ **Atomic Capacity Control** — Enforces strict seat limits directly at the database layer.
@@ -41,28 +40,7 @@
 
 ---
 
-## ⚡ Quick Start
 
-### 1. Clone & Install
-```bash
-git clone https://github.com/erinbreaks/entryx.git
-cd entryx
-npm install
-```
-
-### 2. Configure `.env.local`
-```bash
-cp .env.example .env.local
-# Fill in your Supabase, Resend, and TICKET_SECRET keys
-```
-
-### 3. Run Locally
-```bash
-npm run dev
-```
-Visit [`http://localhost:3000`](http://localhost:3000) 🚀
-
----
 
 ## 🔍 Verification Lifecycle
 
