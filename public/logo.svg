@@ -1,0 +1,15 @@
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="goldGradient" x1="6" y1="6" x2="42" y2="42" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F5BE58" />
+      <stop offset="0.5" stop-color="#E5A93C" />
+      <stop offset="1" stop-color="#C98D23" />
+    </linearGradient>
+  </defs>
+  <path d="M6 10C6 7.79086 7.79086 6 10 6H38C40.2091 6 42 7.79086 42 10V20C39.7909 20 38 21.7909 38 24C38 26.2091 39.7909 28 42 28V38C42 40.2091 40.2091 42 38 42H10C7.79086 42 6 40.2091 6 38V28C8.20914 28 10 26.2091 10 24C10 21.7909 8.20914 20 6 20V10Z" fill="url(#goldGradient)" stroke="#F5BE58" stroke-width="1.5" />
+  <line x1="18" y1="8" x2="18" y2="40" stroke="#0B0D13" stroke-width="1.5" stroke-dasharray="2.5 2.5" stroke-opacity="0.4" />
+  <path d="M24 24.5L28.5 29L35 19.5" stroke="#0B0D13" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="12" cy="14" r="1.5" fill="#FAF6EE" fill-opacity="0.8" />
+  <circle cx="12" cy="24" r="1.5" fill="#FAF6EE" fill-opacity="0.8" />
+  <circle cx="12" cy="34" r="1.5" fill="#FAF6EE" fill-opacity="0.8" />
+</svg>

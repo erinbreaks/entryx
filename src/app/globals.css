@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 11 13 19;
+    --surface: 18 22 34;
+    --brand-gold: 229 169 60;
+  }
+
+  body {
+    background-color: #0B0D13;
+    color: #FDFBF7;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Custom smooth scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #0B0D13;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #262D42;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #E5A93C;
+  }
+}
+
+@layer utilities {
+  .text-glow-gold {
+    text-shadow: 0 0 25px rgba(229, 169, 60, 0.4);
+  }
+  
+  .ticket-cutout-left {
+    mask-image: radial-gradient(circle at 0% 50%, transparent 12px, black 13px);
+  }
+  
+  .ticket-cutout-right {
+    mask-image: radial-gradient(circle at 100% 50%, transparent 12px, black 13px);
+  }
+}
+
+/* Print Styles for Tickets */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  nav, footer, .print\\:hidden {
+    display: none !important;
+  }
+}
