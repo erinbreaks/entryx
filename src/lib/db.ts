@@ -150,7 +150,7 @@ function saveLocalDB(data: LocalDB): void {
 }
 
 export const DEFAULT_OWNER: Profile = {
-  id: 'owner-erin-001',
+  id: 'a0000000-0000-0000-0000-000000000001',
   email: 'erinbobin@gmail.com',
   name: 'Erin Bobin',
   role: 'owner',
@@ -158,6 +158,25 @@ export const DEFAULT_OWNER: Profile = {
   phone: '9446611885',
   created_at: '2026-01-01T00:00:00.000Z',
 };
+
+async function ensureProfileInSupabase(profile: Profile) {
+  if (isSupabaseConfigured && supabaseAdmin) {
+    try {
+      await supabaseAdmin.from('profiles').upsert({
+        id: profile.id,
+        email: profile.email.toLowerCase(),
+        role: profile.role,
+        name: profile.name,
+        password_hash: profile.password_hash,
+        phone: profile.phone || null,
+        created_at: profile.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'email' });
+    } catch (err: any) {
+      console.warn('Could not auto-upsert profile to Supabase:', err?.message || err);
+    }
+  }
+}
 
 export const db = {
   // ==========================================
@@ -207,7 +226,7 @@ export const db = {
   },
 
   async createProfile(profile: Omit<Profile, 'id' | 'created_at'> & { id?: string }): Promise<Profile> {
-    const id = profile.id || crypto.randomUUID();
+    const id = (profile.id && profile.id.length === 36) ? profile.id : crypto.randomUUID();
     const newProfile: Profile = {
       ...profile,
       id,
@@ -218,15 +237,24 @@ export const db = {
 
     if (isSupabaseConfigured && supabaseAdmin) {
       try {
-        const { data, error } = await supabaseAdmin.from('profiles').insert(newProfile).select().single();
-        if (!error && data) return data as Profile;
-      } catch (e) {
-        console.warn('Supabase insert failed, using fallback:', e);
+        const { data, error } = await supabaseAdmin.from('profiles').upsert(newProfile, { onConflict: 'email' }).select().single();
+        if (error) {
+          console.error('[Supabase createProfile Error]:', error.message);
+        } else if (data) {
+          return data as Profile;
+        }
+      } catch (e: any) {
+        console.error('[Supabase createProfile Exception]:', e?.message || e);
       }
     }
 
     const local = getLocalDB();
-    local.profiles.push(newProfile);
+    const existingIndex = local.profiles.findIndex(p => p.email.toLowerCase() === newProfile.email.toLowerCase());
+    if (existingIndex >= 0) {
+      local.profiles[existingIndex] = newProfile;
+    } else {
+      local.profiles.push(newProfile);
+    }
     saveLocalDB(local);
     return newProfile;
   },
@@ -262,9 +290,13 @@ export const db = {
     if (isSupabaseConfigured && supabaseAdmin) {
       try {
         const { data, error } = await supabaseAdmin.from('event_creation_requests').insert(newReq).select().single();
-        if (!error && data) return data as EventCreationRequest;
-      } catch (e) {
-        console.warn('Supabase insert failed, using fallback:', e);
+        if (error) {
+          console.error('[Supabase createEventRequest Error]:', error.message, error.details || '');
+        } else if (data) {
+          return data as EventCreationRequest;
+        }
+      } catch (e: any) {
+        console.error('[Supabase createEventRequest Exception]:', e?.message || e);
       }
     }
 
@@ -298,17 +330,25 @@ export const db = {
     reviewedBy?: string
   ): Promise<EventCreationRequest | null> {
     const reviewedAt = new Date().toISOString();
+    const validReviewedBy = (reviewedBy && reviewedBy.length === 36) ? reviewedBy : (reviewedBy ? DEFAULT_OWNER.id : null);
     if (isSupabaseConfigured && supabaseAdmin) {
       try {
+        if (validReviewedBy) {
+          await ensureProfileInSupabase(DEFAULT_OWNER);
+        }
         const { data, error } = await supabaseAdmin
           .from('event_creation_requests')
-          .update({ status, reviewed_at: reviewedAt, reviewed_by: reviewedBy })
+          .update({ status, reviewed_at: reviewedAt, reviewed_by: validReviewedBy })
           .eq('id', id)
           .select()
           .single();
-        if (!error && data) return data as EventCreationRequest;
-      } catch (e) {
-        console.warn('Supabase update failed, using fallback:', e);
+        if (error) {
+          console.error('[Supabase updateEventRequestStatus Error]:', error.message);
+        } else if (data) {
+          return data as EventCreationRequest;
+        }
+      } catch (e: any) {
+        console.error('[Supabase updateEventRequestStatus Exception]:', e?.message || e);
       }
     }
 
@@ -317,7 +357,7 @@ export const db = {
     if (!req) return null;
     req.status = status;
     req.reviewed_at = reviewedAt;
-    req.reviewed_by = reviewedBy;
+    req.reviewed_by = validReviewedBy || undefined;
     saveLocalDB(local);
     return req;
   },
@@ -338,10 +378,20 @@ export const db = {
 
     if (isSupabaseConfigured && supabaseAdmin) {
       try {
+        if (newEvent.created_by) {
+          const creator = await this.getProfileById(newEvent.created_by);
+          if (creator) {
+            await ensureProfileInSupabase(creator);
+          }
+        }
         const { data, error } = await supabaseAdmin.from('events').insert(newEvent).select().single();
-        if (!error && data) return data as Event;
-      } catch (e) {
-        console.warn('Supabase insert failed, using fallback:', e);
+        if (error) {
+          console.error('[Supabase createEvent Error]:', error.message, error.details || '', error.hint || '');
+        } else if (data) {
+          return data as Event;
+        }
+      } catch (e: any) {
+        console.error('[Supabase createEvent Exception]:', e?.message || e);
       }
     }
 
