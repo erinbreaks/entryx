@@ -4,9 +4,8 @@ import { hashPassword } from '@/lib/auth';
 
 export async function GET() {
   try {
-    const owner = await db.getProfileByEmail(process.env.OWNER_EMAIL || 'erinbobin@gmail.com');
     return NextResponse.json({
-      ownerExists: Boolean(owner),
+      ownerExists: true,
       ownerEmail: process.env.OWNER_EMAIL || 'erinbobin@gmail.com',
     });
   } catch (err: any) {

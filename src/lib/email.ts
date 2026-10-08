@@ -181,6 +181,19 @@ export async function sendTicketConfirmationEmail(params: SendTicketEmailParams)
   }
 }
 
+function getAppBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.includes('localhost')) {
+    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '');
+  }
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+}
+
 /**
  * Sends a real email notification to the Owner when an event request is submitted
  */
@@ -192,6 +205,7 @@ export async function sendEventRequestNotification(params: SendEventRequestNotif
   }
 
   const { organizerName, organizerEmail, phone, organizationName, message, eventDescription, requestId } = params;
+  const baseUrl = getAppBaseUrl();
 
   const html = `
 <!DOCTYPE html>
@@ -220,7 +234,7 @@ export async function sendEventRequestNotification(params: SendEventRequestNotif
     </div>
 
     <p style="margin-top: 24px; font-size: 13px; color: #9CA3AF;">
-      Log in to the <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/admin/requests" style="color: #E5A93C;">EntryX Owner Portal</a> to review, approve, and authorize an organizer account.
+      Log in to the <a href="${baseUrl}/admin/requests" style="color: #E5A93C;">EntryX Owner Portal</a> to review, approve, and authorize an organizer account.
     </p>
   </div>
 </body>

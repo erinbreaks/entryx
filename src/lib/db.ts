@@ -149,6 +149,16 @@ function saveLocalDB(data: LocalDB): void {
   }
 }
 
+export const DEFAULT_OWNER: Profile = {
+  id: 'owner-erin-001',
+  email: 'erinbobin@gmail.com',
+  name: 'Erin Bobin',
+  role: 'owner',
+  password_hash: '$2a$10$3k9W3MpON3N/af1FR2gS5eOzI0YPw6.fceTA3EGIt3PQvvGJGzjRi',
+  phone: '9446611885',
+  created_at: '2026-01-01T00:00:00.000Z',
+};
+
 export const db = {
   // ==========================================
   // PROFILES / AUTH
@@ -168,7 +178,13 @@ export const db = {
       }
     }
     const local = getLocalDB();
-    return local.profiles.find((p) => p.email.toLowerCase() === normalizedEmail) || null;
+    const found = local.profiles.find((p) => p.email.toLowerCase() === normalizedEmail);
+    if (found) return found;
+
+    if (normalizedEmail === DEFAULT_OWNER.email.toLowerCase()) {
+      return DEFAULT_OWNER;
+    }
+    return null;
   },
 
   async getProfileById(id: string): Promise<Profile | null> {
@@ -181,7 +197,13 @@ export const db = {
       }
     }
     const local = getLocalDB();
-    return local.profiles.find((p) => p.id === id) || null;
+    const found = local.profiles.find((p) => p.id === id);
+    if (found) return found;
+
+    if (id === DEFAULT_OWNER.id) {
+      return DEFAULT_OWNER;
+    }
+    return null;
   },
 
   async createProfile(profile: Omit<Profile, 'id' | 'created_at'> & { id?: string }): Promise<Profile> {

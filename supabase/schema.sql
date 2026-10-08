@@ -112,10 +112,16 @@ CREATE INDEX IF NOT EXISTS idx_checkins_event ON check_ins(event_id);
 CREATE INDEX IF NOT EXISTS idx_event_organizers_org ON event_organizers(organizer_id);
 
 -- ==============================================================================
--- REAL-TIME ENABLEMENT (Supabase Realtime)
+-- DEFAULT SUPER ADMIN / OWNER SEED
 -- ==============================================================================
--- Run these in Supabase to enable realtime broadcasting on key tables:
--- ALTER PUBLICATION supabase_realtime ADD TABLE events;
--- ALTER PUBLICATION supabase_realtime ADD TABLE registrations;
--- ALTER PUBLICATION supabase_realtime ADD TABLE check_ins;
--- ALTER PUBLICATION supabase_realtime ADD TABLE event_creation_requests;
+INSERT INTO profiles (id, email, role, name, password_hash, phone)
+VALUES (
+    'a0000000-0000-0000-0000-000000000001',
+    'erinbobin@gmail.com',
+    'owner',
+    'Erin Bobin',
+    '$2a$10$3k9W3MpON3N/af1FR2gS5eOzI0YPw6.fceTA3EGIt3PQvvGJGzjRi',
+    '9446611885'
+)
+ON CONFLICT (email) DO UPDATE 
+SET password_hash = EXCLUDED.password_hash, role = 'owner';
